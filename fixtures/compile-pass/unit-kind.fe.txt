@@ -1,0 +1,7 @@
+use exactsplit::{BasisPoints, TieBreak, Units, preview}
+
+pub fn example() {
+    let amount = Units { value: 7 }
+    let weights = [BasisPoints { value: 625 }; 16]
+    let _ = preview(amount: amount, weights: weights, len: 16, mode: TieBreak::Fixed, cursor: 0)
+}

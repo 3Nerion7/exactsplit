@@ -1,0 +1,11 @@
+use exactsplit::{BasisPoints, RotationState, TieBreak, Units, commit_split}
+
+pub fn example() {
+    var state = RotationState { cursor: 0 }
+    let _ = commit_split(
+        amount: Units { value: 1 },
+        weights: [BasisPoints { value: 625 }; 16],
+        len: 16,
+        mode: TieBreak::Rotating,
+    )
+}

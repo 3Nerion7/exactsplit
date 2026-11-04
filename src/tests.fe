@@ -1,0 +1,466 @@
+use ingot::{
+    Allocation,
+    BasisPoints,
+    MAX_TOTAL,
+    RotationState,
+    SplitError,
+    SplitResult,
+    TieBreak,
+    Units,
+    commit_split,
+    preview,
+}
+
+fn make_weights(a: u256, b: u256, c: u256, d: u256) -> [BasisPoints; 16] {
+    var weights = [BasisPoints { value: 0 }; 16]
+    weights[0] = BasisPoints { value: a }
+    weights[1] = BasisPoints { value: b }
+    weights[2] = BasisPoints { value: c }
+    weights[3] = BasisPoints { value: d }
+    weights
+}
+
+fn expect_ok(result: SplitResult) -> Allocation {
+    match result {
+        SplitResult::Ok(allocation) => allocation,
+        SplitResult::Err(_) => {
+            assert!(false)
+            Allocation { payouts: [Units { value: 0 }; 16], len: 0, next_cursor: 0 }
+        },
+    }
+}
+
+fn error_code(result: SplitResult) -> u256 {
+    match result {
+        SplitResult::Ok(_) => 0,
+        SplitResult::Err(error) => match error {
+            SplitError::InvalidLength => 1,
+            SplitError::AmountAboveLimit => 2,
+            SplitError::WeightAboveLimit => 3,
+            SplitError::WeightSum => 4,
+            SplitError::InactiveWeight => 5,
+            SplitError::InvalidCursor => 6,
+        },
+    }
+}
+
+#[test]
+fn fixed_equal_weights_preserve_total_and_inactive_zero() {
+    let allocation = expect_ok(
+        result: preview(
+            amount: Units { value: 10 },
+            weights: make_weights(a: 2500, b: 2500, c: 2500, d: 2500),
+            len: 4,
+            mode: TieBreak::Fixed,
+            cursor: 3,
+        ),
+    )
+    assert!(allocation.payouts[0].value == 3)
+    assert!(allocation.payouts[1].value == 3)
+    assert!(allocation.payouts[2].value == 2)
+    assert!(allocation.payouts[3].value == 2)
+    assert!(allocation.next_cursor == 3)
+    var i: usize = 4
+    while i < 16 {
+        assert!(allocation.payouts[i].value == 0)
+        i = i + 1
+    }
+}
+
+#[test]
+fn rotating_equal_weights_start_at_cursor() {
+    let allocation = expect_ok(
+        result: preview(
+            amount: Units { value: 1 },
+            weights: make_weights(a: 2500, b: 2500, c: 2500, d: 2500),
+            len: 4,
+            mode: TieBreak::Rotating,
+            cursor: 2,
+        ),
+    )
+    assert!(allocation.payouts[0].value == 0)
+    assert!(allocation.payouts[1].value == 0)
+    assert!(allocation.payouts[2].value == 1)
+    assert!(allocation.payouts[3].value == 0)
+    assert!(allocation.next_cursor == 3)
+}
+
+#[test]
+fn rotating_multiple_residuals_advance_after_last_winner() {
+    let allocation = expect_ok(
+        result: preview(
+            amount: Units { value: 3 },
+            weights: make_weights(a: 2500, b: 2500, c: 2500, d: 2500),
+            len: 4,
+            mode: TieBreak::Rotating,
+            cursor: 3,
+        ),
+    )
+    assert!(allocation.payouts[3].value == 1)
+    assert!(allocation.payouts[0].value == 1)
+    assert!(allocation.payouts[1].value == 1)
+    assert!(allocation.payouts[2].value == 0)
+    assert!(allocation.next_cursor == 2)
+}
+
+#[test]
+fn larger_remainder_wins_regardless_of_cursor() {
+    let allocation = expect_ok(
+        result: preview(
+            amount: Units { value: 1 },
+            weights: make_weights(a: 3334, b: 3333, c: 3333, d: 0),
+            len: 3,
+            mode: TieBreak::Rotating,
+            cursor: 2,
+        ),
+    )
+    assert!(allocation.payouts[0].value == 1)
+    assert!(allocation.payouts[1].value == 0)
+    assert!(allocation.payouts[2].value == 0)
+    assert!(allocation.next_cursor == 1)
+}
+
+#[test]
+fn zero_amount_and_exact_division_preserve_cursor() {
+    let weights = make_weights(a: 5000, b: 5000, c: 0, d: 0)
+    let zero = expect_ok(
+        result: preview(
+            amount: Units { value: 0 },
+            weights: weights,
+            len: 2,
+            mode: TieBreak::Rotating,
+            cursor: 1,
+        ),
+    )
+    assert!(zero.payouts[0].value == 0)
+    assert!(zero.payouts[1].value == 0)
+    assert!(zero.next_cursor == 1)
+    let exact = expect_ok(
+        result: preview(
+            amount: Units { value: 4 },
+            weights: weights,
+            len: 2,
+            mode: TieBreak::Rotating,
+            cursor: 1,
+        ),
+    )
+    assert!(exact.payouts[0].value == 2)
+    assert!(exact.payouts[1].value == 2)
+    assert!(exact.next_cursor == 1)
+}
+
+#[test]
+fn maximum_amount_does_not_overflow() {
+    let allocation = expect_ok(
+        result: preview(
+            amount: Units { value: MAX_TOTAL },
+            weights: make_weights(a: 5000, b: 5000, c: 0, d: 0),
+            len: 2,
+            mode: TieBreak::Fixed,
+            cursor: 0,
+        ),
+    )
+    assert!(
+        allocation.payouts[0].value == 170141183460469231731687303715884105728,
+    )
+    assert!(
+        allocation.payouts[1].value == 170141183460469231731687303715884105727,
+    )
+    assert!(
+        allocation.payouts[0].value + allocation.payouts[1].value == MAX_TOTAL,
+    )
+}
+
+#[test]
+fn sixteen_recipients_are_supported() {
+    let weights = [BasisPoints { value: 625 }; 16]
+    let allocation = expect_ok(
+        result: preview(
+            amount: Units { value: 15 },
+            weights: weights,
+            len: 16,
+            mode: TieBreak::Rotating,
+            cursor: 15,
+        ),
+    )
+    assert!(allocation.payouts[14].value == 0)
+    assert!(allocation.payouts[15].value == 1)
+    var total: u256 = 0
+    var i: usize = 0
+    while i < 16 {
+        total = total + allocation.payouts[i].value
+        i = i + 1
+    }
+    assert!(total == 15)
+    assert!(allocation.next_cursor == 14)
+}
+
+#[test]
+fn rejects_lengths_below_two_and_above_sixteen() {
+    let weights = make_weights(a: 5000, b: 5000, c: 0, d: 0)
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: 1 },
+                    weights: weights,
+                    len: 0,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 1,
+    )
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: 1 },
+                    weights: weights,
+                    len: 1,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 1,
+    )
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: 1 },
+                    weights: weights,
+                    len: 17,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 1,
+    )
+}
+
+#[test]
+fn rejects_amount_above_limit_before_multiplication() {
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: MAX_TOTAL + 1 },
+                    weights: make_weights(a: 10000, b: 0, c: 0, d: 0),
+                    len: 2,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 2,
+    )
+}
+
+#[test]
+fn rejects_large_individual_weight_before_sum() {
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: MAX_TOTAL },
+                    weights: make_weights(
+                        a: 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
+                        b: 1,
+                        c: 0,
+                        d: 0,
+                    ),
+                    len: 2,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 3,
+    )
+}
+
+#[test]
+fn rejects_weight_sums_on_both_sides() {
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: 1 },
+                    weights: make_weights(a: 4999, b: 5000, c: 0, d: 0),
+                    len: 2,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 4,
+    )
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: 1 },
+                    weights: make_weights(a: 5001, b: 5000, c: 0, d: 0),
+                    len: 2,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 4,
+    )
+}
+
+#[test]
+fn rejects_nonzero_inactive_slots() {
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: 1 },
+                    weights: make_weights(a: 5000, b: 5000, c: 1, d: 0),
+                    len: 2,
+                    mode: TieBreak::Fixed,
+                    cursor: 0,
+                ),
+            )
+            == 5,
+    )
+}
+
+#[test]
+fn rejects_invalid_cursor_even_in_fixed_mode() {
+    assert!(
+        error_code(
+                result: preview(
+                    amount: Units { value: 1 },
+                    weights: make_weights(a: 5000, b: 5000, c: 0, d: 0),
+                    len: 2,
+                    mode: TieBreak::Fixed,
+                    cursor: 2,
+                ),
+            )
+            == 6,
+    )
+}
+
+#[test]
+fn preview_is_pure_and_commit_alternates_partial_ties() {
+    var state = RotationState { cursor: 0 }
+    let weights = make_weights(a: 5000, b: 5000, c: 0, d: 0)
+    let previewed = expect_ok(
+        result: preview(
+            amount: Units { value: 1 },
+            weights: weights,
+            len: 3,
+            mode: TieBreak::Rotating,
+            cursor: state.cursor,
+        ),
+    )
+    assert!(previewed.payouts[0].value == 1)
+    assert!(state.cursor == 0)
+    with (RotationState = state) {
+        let first = expect_ok(
+            result: commit_split(
+                amount: Units { value: 1 },
+                weights: weights,
+                len: 3,
+                mode: TieBreak::Rotating,
+            ),
+        )
+        assert!(first.payouts[0].value == 1)
+        let second = expect_ok(
+            result: commit_split(
+                amount: Units { value: 1 },
+                weights: weights,
+                len: 3,
+                mode: TieBreak::Rotating,
+            ),
+        )
+        assert!(second.payouts[1].value == 1)
+        let third = expect_ok(
+            result: commit_split(
+                amount: Units { value: 1 },
+                weights: weights,
+                len: 3,
+                mode: TieBreak::Rotating,
+            ),
+        )
+        assert!(third.payouts[0].value == 1)
+        let fourth = expect_ok(
+            result: commit_split(
+                amount: Units { value: 1 },
+                weights: weights,
+                len: 3,
+                mode: TieBreak::Rotating,
+            ),
+        )
+        assert!(fourth.payouts[1].value == 1)
+    }
+    assert!(state.cursor == 2)
+}
+
+#[test]
+fn errors_do_not_mutate_cursor() {
+    var state = RotationState { cursor: 1 }
+    with (RotationState = state) {
+        assert!(
+            error_code(
+                    result: commit_split(
+                        amount: Units { value: MAX_TOTAL + 1 },
+                        weights: make_weights(a: 5000, b: 5000, c: 0, d: 0),
+                        len: 2,
+                        mode: TieBreak::Rotating,
+                    ),
+                )
+                == 2,
+        )
+        assert!(
+            error_code(
+                    result: commit_split(
+                        amount: Units { value: 1 },
+                        weights: make_weights(a: 5000, b: 4999, c: 0, d: 0),
+                        len: 2,
+                        mode: TieBreak::Rotating,
+                    ),
+                )
+                == 4,
+        )
+    }
+    assert!(state.cursor == 1)
+}
+
+#[test]
+fn fixed_commit_never_advances_cursor() {
+    var state = RotationState { cursor: 1 }
+    with (RotationState = state) {
+        let allocation = expect_ok(
+            result: commit_split(
+                amount: Units { value: 1 },
+                weights: make_weights(a: 5000, b: 5000, c: 0, d: 0),
+                len: 2,
+                mode: TieBreak::Fixed,
+            ),
+        )
+        assert!(allocation.payouts[0].value == 1)
+    }
+    assert!(state.cursor == 1)
+}
+
+#[test]
+fn hamilton_is_not_house_monotone() {
+    let weights = make_weights(a: 5556, b: 3333, c: 1111, d: 0)
+    let four = expect_ok(
+        result: preview(
+            amount: Units { value: 4 },
+            weights: weights,
+            len: 3,
+            mode: TieBreak::Fixed,
+            cursor: 0,
+        ),
+    )
+    let five = expect_ok(
+        result: preview(
+            amount: Units { value: 5 },
+            weights: weights,
+            len: 3,
+            mode: TieBreak::Fixed,
+            cursor: 0,
+        ),
+    )
+    assert!(
+        four.payouts[0].value == 2 && four.payouts[1].value == 1 && four.payouts[2].value == 1,
+    )
+    assert!(
+        five.payouts[0].value == 3 && five.payouts[1].value == 2 && five.payouts[2].value == 0,
+    )
+}

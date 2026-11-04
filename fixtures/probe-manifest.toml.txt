@@ -1,0 +1,6 @@
+[ingot]
+name = "exactsplit_compiler_probe"
+version = "0.1.0"
+
+[dependencies]
+exactsplit = { path = "__EXACTSPLIT_PATH__" }

@@ -1,0 +1,20 @@
+[
+  {
+    "name": "unit-kind",
+    "positive": "compile-pass/unit-kind.fe.txt",
+    "negative": "compile-fail/unit-kind.fe.txt",
+    "diagnostic_regex": "(?s)\\Aerror\\[8-0000\\]: type mismatch\\r?\\n(?!.*error\\[).*expected `Units`, but `BasisPoints` is given"
+  },
+  {
+    "name": "missing-effect",
+    "positive": "compile-pass/missing-effect.fe.txt",
+    "negative": "compile-fail/missing-effect.fe.txt",
+    "diagnostic_regex": "(?s)\\Aerror\\[8-0036\\]: missing effect `RotationState` required by `commit_split`\\r?\\n(?!.*error\\[).*`commit_split` requires effect `RotationState` to be in scope"
+  },
+  {
+    "name": "read-only-effect",
+    "positive": "compile-pass/read-only-effect.fe.txt",
+    "negative": "compile-fail/read-only-effect.fe.txt",
+    "diagnostic_regex": "(?s)\\Aerror\\[8-0037\\]: effect `RotationState` must be mutable when calling `commit_split`\\r?\\n(?!.*error\\[).*`commit_split` requires `mut RotationState`"
+  }
+]

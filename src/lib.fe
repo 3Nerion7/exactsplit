@@ -1,0 +1,171 @@
+// ExactSplit computes bounded plans; it never transfers funds.
+pub struct Units { pub value: u256 }
+
+pub struct BasisPoints { pub value: u256 }
+
+pub enum TieBreak {
+    Fixed,
+    Rotating,
+}
+
+pub enum SplitError {
+    InvalidLength,
+    AmountAboveLimit,
+    WeightAboveLimit,
+    WeightSum,
+    InactiveWeight,
+    InvalidCursor,
+}
+
+pub struct Allocation { pub payouts: [Units; 16], pub len: usize, pub next_cursor: usize }
+
+pub enum SplitResult {
+    Ok(Allocation),
+    Err(SplitError),
+}
+
+// Application state only: no wallet, chain or persistence is implied.
+pub struct RotationState { pub cursor: usize }
+
+pub const MAX_TOTAL: u256 = 340282366920938463463374607431768211455
+
+// Pure preview: it cannot advance application state.
+pub fn preview(
+    amount: Units,
+    weights: [BasisPoints; 16],
+    len: usize,
+    mode: TieBreak,
+    cursor: usize,
+) -> SplitResult {
+    if len < 2 || len > 16 {
+        return SplitResult::Err(SplitError::InvalidLength)
+    }
+    if amount.value > MAX_TOTAL {
+        return SplitResult::Err(SplitError::AmountAboveLimit)
+    }
+    if cursor >= len {
+        return SplitResult::Err(SplitError::InvalidCursor)
+    }
+    var weight_sum: u256 = 0
+    var i: usize = 0
+    while i < 16 {
+        if i < len {
+            if weights[i].value > 10000 {
+                return SplitResult::Err(SplitError::WeightAboveLimit)
+            }
+            weight_sum = weight_sum + weights[i].value
+        } else {
+            if weights[i].value != 0 {
+                return SplitResult::Err(SplitError::InactiveWeight)
+            }
+        }
+        i = i + 1
+    }
+    if weight_sum != 10000 {
+        return SplitResult::Err(SplitError::WeightSum)
+    }
+
+    var payouts: [Units; 16] = [Units { value: 0 }; 16]
+    var remainders: [u256; 16] = [0; 16]
+    var awarded: [bool; 16] = [false; 16]
+    var floor_sum: u256 = 0
+    i = 0
+    while i < len {
+        // Validated bounds: product <2^142; the accumulator never exceeds amount.
+        let product = amount.value * weights[i].value
+        let floor = product / 10000
+        payouts[i] = Units { value: floor }
+        remainders[i] = product % 10000
+        floor_sum = floor_sum + floor
+        i = i + 1
+    }
+
+    var left = amount.value - floor_sum
+    var next_cursor = cursor
+    while left > 0 {
+        // Valid weights imply left<len; award each candidate at most once.
+        var best: usize = 0
+        var found = false
+        i = 0
+        while i < len {
+            if !awarded[i] {
+                if !found {
+                    best = i
+                    found = true
+                } else {
+                    if remainders[i] > remainders[best] {
+                        best = i
+                    } else {
+                        if remainders[i] == remainders[best] {
+                            let candidate_rank = tie_rank(
+                                index: i,
+                                len: len,
+                                mode: mode,
+                                cursor: cursor,
+                            )
+                            let current_rank = tie_rank(
+                                index: best,
+                                len: len,
+                                mode: mode,
+                                cursor: cursor,
+                            )
+                            if candidate_rank < current_rank {
+                                best = i
+                            }
+                        }
+                    }
+                }
+            }
+            i = i + 1
+        }
+        assert!(found)
+        payouts[best] = Units { value: payouts[best].value + 1 }
+        awarded[best] = true
+        next_cursor = match mode {
+            TieBreak::Fixed => cursor,
+            TieBreak::Rotating => (best + 1) % len,
+        }
+        left = left - 1
+    }
+    SplitResult::Ok(
+        Allocation { payouts: payouts, len: len, next_cursor: next_cursor },
+    )
+}
+
+fn tie_rank(index: usize, len: usize, mode: TieBreak, cursor: usize) -> usize {
+    match mode {
+        TieBreak::Fixed => index,
+        TieBreak::Rotating => (index + len - cursor) % len,
+    }
+}
+
+// Validate and plan before the only state write.
+pub fn commit_split(
+    amount: Units,
+    weights: [BasisPoints; 16],
+    len: usize,
+    mode: TieBreak,
+) -> SplitResult
+uses (state: mut RotationState)
+{
+    match preview(
+        amount: amount,
+        weights: weights,
+        len: len,
+        mode: mode,
+        cursor: state.cursor,
+    ) {
+        SplitResult::Ok(allocation) => {
+            state.cursor = allocation.next_cursor
+            SplitResult::Ok(allocation)
+        },
+        SplitResult::Err(error) => SplitResult::Err(error),
+    }
+}
+
+impl Copy for Units {}
+impl Copy for BasisPoints {}
+impl Copy for TieBreak {}
+impl Copy for SplitError {}
+impl Copy for Allocation {}
+impl Copy for SplitResult {}
