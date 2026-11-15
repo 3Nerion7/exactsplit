@@ -6,6 +6,12 @@ ExactSplit is a small Fe library for dividing a bounded amount between 2–16 we
 
 Its Fe-specific distinction is the separation between a pure preview and an operation that requires an explicit mutable rotation-state effect. Amounts and weights also have different types. These types prevent accidental mixing; numerical bounds are validated at runtime.
 
+## Relationship to Fe std and core
+
+ExactSplit builds above Fe’s scalar arithmetic and type system. It does not replace [`core::num::mul_div`](https://github.com/argotorg/fe/blob/3dab95f8eebdccf9a2382bb59a33f7bbd03540ca/ingots/core/src/num.fe#L1089), [`core::fixed`](https://github.com/argotorg/fe/blob/3dab95f8eebdccf9a2382bb59a33f7bbd03540ca/ingots/core/src/fixed.fe#L38), or [`std::evm::units::Wei.mul_div`](https://github.com/argotorg/fe/blob/3dab95f8eebdccf9a2382bb59a33f7bbd03540ca/ingots/std/src/evm/units.fe#L42). Those Fe 26.5.0 APIs already provide scalar multiplication/division, explicit rounding, fixed-point values, and typed ETH quantities. The type and effect mechanisms are existing Fe features.
+
+Compared with those scalar APIs, ExactSplit adds an aggregate allocation policy for a validated vector of 2–16 recipients whose basis-point weights total 10,000. It conserves the integer total by assigning leftover units through largest-remainder ordering, provides fixed or rotating tie handling, and separates a pure `preview` from `commit_split`, which saves the cursor only after successful allocation. Hamilton’s largest-remainder method is established; the contribution is this bounded Fe API and its documented behaviour, rather than a new algorithm, wider arithmetic range, or general fairness guarantee. The existing `2^128−1` total bound, non-monotonicity example, and no-transfer limitation still apply.
+
 ## Try it
 
 Requirements: Python 3.11+ and the pinned **Fe 26.5.0** executable on x86-64 Windows or Linux. Python uses only its standard library. The compiler is a free, portable download; no account, RPC, wallet or deployment is needed.
