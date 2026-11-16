@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/3Nerion7/exactsplit",
+  "tested_commit": "a310f86eb83b71f70cdbe4ec8ea377352a9c5f44",
+  "tested_tree": "13f5d9d9003325e320471ccc5d03cfcf9c946374",
+  "performed_by": "AI-assisted development tools",
+  "environment": {
+    "os": "Ubuntu 24.04",
+    "substrate": "WSL2",
+    "architecture": "x86_64",
+    "python": "3.12.3",
+    "fe": "26.5.0",
+    "test_backend": "Fe local EVM"
+  },
+  "command": "python3 scripts/verify.py --download-compiler",
+  "compiler": {
+    "source_url": "https://github.com/argotorg/fe/releases/download/v26.5.0/fe_linux_amd64",
+    "size_bytes": 54195184,
+    "sha256": "3732fbe8a6e9d2ea3925d02d0e3a1478bc1e01d742c2be75d3ea7300c46c45f0"
+  },
+  "started_utc": "2026-11-16T16:11:59.146908+00:00",
+  "finished_utc": "2026-11-16T16:12:16.770134+00:00",
+  "exit_status": 0,
+  "passed": true,
+  "runtime_tests": 511,
+  "focused_tests": 17,
+  "oracle_vectors": 494,
+  "paired_compile_checks": 3,
+  "steps": [
+    {
+      "name": "version",
+      "exit_code": 0,
+      "expected_exit": 0
+    },
+    {
+      "name": "core-check",
+      "exit_code": 0,
+      "expected_exit": 0
+    },
+    {
+      "name": "core-tests",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "runtime_tests_passed": 17
+    },
+    {
+      "name": "oracle-tests",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "runtime_tests_passed": 494
+    },
+    {
+      "name": "unit-kind-positive",
+      "exit_code": 0,
+      "expected_exit": 0
+    },
+    {
+      "name": "unit-kind-negative",
+      "exit_code": 1,
+      "expected_exit": 1
+    },
+    {
+      "name": "missing-effect-positive",
+      "exit_code": 0,
+      "expected_exit": 0
+    },
+    {
+      "name": "missing-effect-negative",
+      "exit_code": 1,
+      "expected_exit": 1
+    },
+    {
+      "name": "read-only-effect-positive",
+      "exit_code": 0,
+      "expected_exit": 0
+    },
+    {
+      "name": "read-only-effect-negative",
+      "exit_code": 1,
+      "expected_exit": 1
+    }
+  ],
+  "code_and_fixture_sha256": {
+    "src/lib.fe": "c0ff40c392fad7f4b6341967524e46d4627f9b4de751553c56f94ddf86a4195a",
+    "src/tests.fe": "d110a7bcd64f9f595fc9be67f6781a7a957486519daf0a049983938533acde76",
+    "scripts/generate_tests.py": "33ff53ab539033bd423fccbd318f9148339b75f705ee73c6c6c94fd00bf272a7",
+    "scripts/oracle.py": "de005e6959f5266f11cb5fcd03a91bb42394241af0cae32ad8eec471b1cfcfce",
+    "scripts/verify.py": "c30938087f892139ac19751f28309492c56dae746c852d58e862b7b060bc2be1",
+    "fixtures/compile-checks.json": "ea8d578f4d0125ee08aa24351f89b80d7ca15e1bb9055341c914d204235b2d9c",
+    "fixtures/compile-fail/missing-effect.fe.txt": "e80032dcde3badab4c006a5d78a5df427f0d4aca9b3534acfd476d3f52f6fad0",
+    "fixtures/compile-fail/read-only-effect.fe.txt": "50dc51820021621b6080dc6ed4e176e821ed36d408a4d2dac457005f8644ca15",
+    "fixtures/compile-fail/unit-kind.fe.txt": "7be74599e4bfe89f9177880d50ceea15fd696809218de8b72f43f590dd67e43d",
+    "fixtures/compile-pass/missing-effect.fe.txt": "c0415c6e0511fd77cc2966f0a9050e7d2a24cfacdb2d2a5cf560c9f74a11b2ba",
+    "fixtures/compile-pass/read-only-effect.fe.txt": "c76b5ef3f628e215a30181c83418f099a31d955c60ebeeb1a03b2d6faf407f46",
+    "fixtures/compile-pass/unit-kind.fe.txt": "aa8b53305111eb187bdd37cbd958e9e096ebb855bbd63505c6a3b81f236f87f9",
+    "fixtures/probe-manifest.toml.txt": "fecf89d376d89370bd58019c49d1a247f0b298903fcd828aa741f81a31153f41",
+    "fixtures/vectors.json": "7ba711b47281204cc1b9d66e4bf14247c3f73378390ab68355adcfe6cf5d6fe6"
+  },
+  "scope": "Observed local execution of the pinned source. Later documentation changes leave these code and fixture hashes unchanged. Not a CI run, new Windows run, formal proof or contest selection."
+}

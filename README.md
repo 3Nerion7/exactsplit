@@ -72,7 +72,7 @@ The allocation rule is Hamilton's largest-remainder method; it is not a new algo
 
 Hamilton is **not monotone in the total**. With weights `[5556, 3333, 1111]`, total 4 gives `[2, 1, 1]`, while total 5 gives `[3, 2, 0]`. The last recipient loses a unit. Rotating ties cannot fix this example because its remainders are unequal. This library therefore makes no general fairness or long-term balance guarantee. Read [the mathematical contract](docs/MATH.md) before choosing the policy for an application.
 
-Verification was executed on Windows with Fe's local EVM test backend. Host-native Windows execution is unsupported by this Fe release. The Linux download path is provided but has not yet been run for this project. No gas savings, production deployment or financial-service suitability is claimed.
+Verification has run on Windows and on Ubuntu 24.04 x86-64 under WSL2 using Fe's local EVM test backend. The [recorded Linux run](docs/evidence/linux-26.5.0.json) passed all 511 runtime tests and three compiler pairs with Python 3.12.3 and the pinned Fe 26.5.0 executable. The Windows result was recorded earlier against the same code; it was not rerun for this documentation update. Host-native Windows execution is unsupported by this Fe release. No gas savings, production deployment or financial-service suitability is claimed.
 
 ## Provenance
 

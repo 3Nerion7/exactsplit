@@ -1,6 +1,6 @@
 # Reproducing the evidence
 
-Run `python scripts/verify.py --download-compiler`, or provide an existing official executable with `--fe PATH`. Python 3.11+ uses no third-party packages. The runner pins Fe 26.5.0 and checks its size and SHA256. It supports x86-64 Windows and Linux; this project's recorded execution is Windows with the local EVM backend.
+Run `python scripts/verify.py --download-compiler`, or provide an existing official executable with `--fe PATH`. Python 3.11+ uses no third-party packages. The runner pins Fe 26.5.0 and checks its size and SHA256. Recorded executions cover x86-64 Windows and Ubuntu 24.04 under WSL2, using Fe's local EVM backend.
 
 ## Runtime checks
 
@@ -21,3 +21,11 @@ Three paired examples check distinct amount/weight types, the required rotation 
 The expected successful summary is **511 Fe runtime tests and three compiler pairs**. Logs and `.artifacts/verification.json` include the compiler hash, exit codes, runtime counts and source hashes. A failed run writes `passed: false`; inspect its error and logs. A previous successful log is not evidence for changed source files.
 
 Review fixture changes before explicitly regenerating them with `python scripts/oracle.py --write-vectors`. Keep generated artifacts, local tool binaries and private machine paths out of a published package. Successful tests support the stated contract; they do not establish production financial correctness, a formal proof or contest selection.
+
+## Recorded Linux execution
+
+On November 16, 2026, the unmodified project at `a310f86eb83b71f70cdbe4ec8ea377352a9c5f44` was verified on Ubuntu 24.04 x86-64 under WSL2 with Python 3.12.3. The official Fe 26.5.0 Linux executable matched the pinned SHA256 and size. `python3 scripts/verify.py --download-compiler` returned status 0: 17 focused tests, 494 independent-oracle vectors, and all three positive/negative compiler pairs passed.
+
+[The compact record](evidence/linux-26.5.0.json) contains the observed counts, expected and actual exit codes, compiler identity and hashes of the tested code and fixtures. It was produced by the development tools, without a CI run or a new Windows execution. The earlier Windows passing report has matching code hashes. This documentation-only follow-up preserves the tested implementation, runner and fixtures.
+
+The Linux execution used WSL2 and the EVM backend. It does not establish bare-metal or native-Fe application execution, deployment, performance or gas savings, production suitability, formal correctness, or contest eligibility.
